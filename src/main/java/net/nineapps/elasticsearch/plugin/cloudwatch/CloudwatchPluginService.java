@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
@@ -126,13 +127,13 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
             	
             	client.admin().cluster().health(new ClusterHealthRequest(), new ActionListener<ClusterHealthResponse>() {
 					public void onResponse(ClusterHealthResponse healthResponse) {
-
-//						logger.info("cluster name is [{}]", healthResponse.getClusterName());
-						
 						PutMetricDataRequest request = new PutMetricDataRequest();
 						request.setNamespace("9apps/Elasticsearch");
 
 						List<MetricDatum> data = Lists.newArrayList();
+                        ClusterHealthStatus clusterStatus = healthResponse.getStatus();
+                        Byte clusterStatusValue = clusterStatus.value();
+
 						data.add(clusterDatum(now, "NumberOfNodes", (double) healthResponse.getNumberOfNodes()));
 						data.add(clusterDatum(now, "NumberOfDataNodes", (double) healthResponse.getNumberOfDataNodes()));
 						data.add(clusterDatum(now, "ActivePrimaryShards", (double) healthResponse.getActivePrimaryShards()));
@@ -140,10 +141,10 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
 						data.add(clusterDatum(now, "RelocatingShards", (double) healthResponse.getRelocatingShards()));
 						data.add(clusterDatum(now, "InitializingShards", (double) healthResponse.getInitializingShards()));
 						data.add(clusterDatum(now, "UnassignedShards", (double) healthResponse.getUnassignedShards()));
+						data.add(clusterDatum(now, "ClusterHealthStatus", clusterStatusValue.doubleValue()));
 						
 						request.setMetricData(data);
 						cloudwatch.putMetricData(request);
-						
 					}
 					
 					public void onFailure(Throwable e) {
