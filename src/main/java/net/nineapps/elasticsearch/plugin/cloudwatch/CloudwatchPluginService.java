@@ -152,27 +152,18 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
 					}
 				});
 
-//                logger.info("node attributes is [{}]", nodeService.attributes());
                 NodeStats nodeStats = nodeService.stats(new CommonStatsFlags().clear(), true, false, true, false, false, false, false, false, false);
 
                 String nodeAddress = nodeService.attributes().get("http_address");
                 if (nodeAddress != null) {
-                	// it might take a little time until http_address is added to the attributes
-                	// if it's still not there, we skip the node metrics this time
-//	                logger.info("node name is [{}]", nodeAddress);
-	                
 	    			sendOsStats(now, nodeStats, nodeAddress);
-
 	    			sendJVMStats(now, nodeStats, nodeAddress);
-
 	    			sendDocsStats(now, nodeAddress, nodeIndicesStats);
 
 	    			if (indexStatsEnabled) {
 	                    sendIndexStats(now, nodeAddress);
 	    		    }
-	    			
-	    			// Most stats we copied from this plugin, selecting the ones that make sense for us: https://github.com/spinscale/elasticsearch-graphite-plugin/blob/master/src/main/java/org/elasticsearch/service/graphite/GraphiteService.java
-	    			
+
                 } else {
                 	logger.warn("Node attribute http_address still not set, skipping node metrics.");
                 }
