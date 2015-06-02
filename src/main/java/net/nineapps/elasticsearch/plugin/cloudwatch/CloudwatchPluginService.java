@@ -52,6 +52,7 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
     private AmazonCloudWatch cloudwatch;
     private final String clusterName;
     private boolean indexStatsEnabled;
+    private String namespace;
 	
 	@Inject
 	public CloudwatchPluginService(Settings settings, Client client,
@@ -60,6 +61,12 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
 		this.client = client;
         this.nodeService = nodeService;
         this.indicesService = indicesService;
+
+        namespace = settings.get("metrics.cloudwatch.namespace");
+        if(namespace == null) {
+            namespace = "Elasticsearch"; 
+        }
+
         String accessKey = settings.get("metrics.cloudwatch.aws.access_key");
         String secretKey = settings.get("metrics.cloudwatch.aws.secret_key");
 
@@ -128,7 +135,7 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
             	client.admin().cluster().health(new ClusterHealthRequest(), new ActionListener<ClusterHealthResponse>() {
 					public void onResponse(ClusterHealthResponse healthResponse) {
 						PutMetricDataRequest request = new PutMetricDataRequest();
-						request.setNamespace("9apps/Elasticsearch");
+						request.setNamespace(namespace);
 
 						List<MetricDatum> data = Lists.newArrayList();
                         ClusterHealthStatus clusterStatus = healthResponse.getStatus();
@@ -179,7 +186,7 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
 		private void sendDocsStats(final Date now, String nodeAddress, NodeIndicesStats nodeIndicesStats) {
 			try {
 				PutMetricDataRequest request = new PutMetricDataRequest();
-				request.setNamespace("9apps/Elasticsearch");
+				request.setNamespace(namespace);
 				List<MetricDatum> docsData = Lists.newArrayList();
 				DocsStats docsStats = nodeIndicesStats.getDocs();
 				long count = ( docsStats != null ? docsStats.getCount() : 0 );
@@ -199,7 +206,7 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
 
 			try {
 				PutMetricDataRequest request = new PutMetricDataRequest();
-				request.setNamespace("9apps/Elasticsearch");
+				request.setNamespace(namespace);
 	
 				JvmStats jvmStats = nodeStats.getJvm();
 				List<MetricDatum> jvmData = Lists.newArrayList();
@@ -241,17 +248,16 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
 			
 			try {
 				PutMetricDataRequest request = new PutMetricDataRequest();
-				request.setNamespace("9apps/Elasticsearch");
+				request.setNamespace(namespace);
 	
 				OsStats osStats = nodeStats.getOs();
 				
 				List<MetricDatum> osData = Lists.newArrayList();
 				
-//				logger.info("Getting os stats for this node");
 				osData.add(nodeDatum(now, nodeAddress, "OsCpuSys", osStats.cpu().sys(), StandardUnit.Percent));
 				osData.add(nodeDatum(now, nodeAddress, "OsCpuIdle", osStats.cpu().idle(), StandardUnit.Percent));
 				osData.add(nodeDatum(now, nodeAddress, "OsCpuUser", osStats.cpu().user(), StandardUnit.Percent));
-	
+
 				osData.add(nodeDatum(now, nodeAddress, "OsMemFreeBytes", osStats.mem().free().bytes(), StandardUnit.Bytes));
 				osData.add(nodeDatum(now, nodeAddress, "OsMemUsedBytes", osStats.mem().used().bytes(), StandardUnit.Bytes));
 				osData.add(nodeDatum(now, nodeAddress, "OsMemFreePercent", osStats.mem().freePercent(), StandardUnit.Percent));
@@ -272,7 +278,7 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
 		private void sendIndexStats(final Date now, String nodeAddress) {
 			try {
 				PutMetricDataRequest request = new PutMetricDataRequest();
-				request.setNamespace("9apps/Elasticsearch");
+				request.setNamespace(namespace);
 
 				List<IndexShard> indexShards = getIndexShards(indicesService);
 				for (IndexShard indexShard : indexShards) {
