@@ -30,7 +30,7 @@ import org.elasticsearch.monitor.os.OsStats;
 import org.elasticsearch.node.service.NodeService;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.*;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClient;
@@ -38,6 +38,7 @@ import com.amazonaws.services.cloudwatch.model.Dimension;
 import com.amazonaws.services.cloudwatch.model.MetricDatum;
 import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 import com.amazonaws.services.cloudwatch.model.StandardUnit;
+import com.amazonaws.internal.StaticCredentialsProvider;
 
 public class CloudwatchPluginService extends AbstractLifecycleComponent<CloudwatchPluginService> {
 	private Client client;
@@ -60,7 +61,22 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
         this.indicesService = indicesService;
         String accessKey = settings.get("metrics.cloudwatch.aws.access_key");
         String secretKey = settings.get("metrics.cloudwatch.aws.secret_key");
-        awsCredentials = new BasicAWSCredentials(accessKey, secretKey);
+
+        AWSCredentialsProvider awsCredentialsProvider;
+
+        if (accessKey == null && secretKey == null) {
+            awsCredentialsProvider = new AWSCredentialsProviderChain(
+                    new EnvironmentVariableCredentialsProvider(),
+                    new SystemPropertiesCredentialsProvider(),
+                    new InstanceProfileCredentialsProvider()
+                    );
+        } else {
+            awsCredentialsProvider = new AWSCredentialsProviderChain(
+                    new StaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey))
+                    );
+        }
+
+        awsCredentials = awsCredentialsProvider.getCredentials();
 
         indexStatsEnabled = settings.getAsBoolean("metrics.cloudwatch.index_stats_enabled", false);
         String region = settings.get("metrics.cloudwatch.aws.region");
