@@ -356,8 +356,8 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
 				|| "ap-northeast-1".equals(region) || "sa-east-1".equals(region)) {
 			return "monitoring." + region + ".amazonaws.com";
 		} else {
-			logger.warn("Unrecognized region [{}], using the default, us-east-1", region);
-			return "monitoring.us-east-1.amazonaws.com";
+			logger.warn("Unrecognized region [{}], using the default, eu-west-1", region);
+			return "monitoring.eu-west-1.amazonaws.com";
 		}
 	}
 
