@@ -48,7 +48,6 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
     private final TimeValue frequency;
     private final IndicesService indicesService;
     private NodeService nodeService;
-    private AWSCredentials awsCredentials;
     private AmazonCloudWatch cloudwatch;
     private final String clusterName;
     private boolean indexStatsEnabled;
@@ -62,27 +61,26 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
         this.nodeService = nodeService;
         this.indicesService = indicesService;
 
-        setNamespace();
-        setCredentials();
+        namespace  = getNamespace();
+        cloudwatch = getCloudwatchClient();
 
         indexStatsEnabled = settings.getAsBoolean("metrics.cloudwatch.index_stats_enabled", false);
-        String region = settings.get("metrics.cloudwatch.aws.region");
-        logger.info("configured region is [{}]",region);
-        cloudwatch = cloudwatchClient(region);
-
         frequency = settings.getAsTime("metrics.cloudwatch.frequency", TimeValue.timeValueMinutes(1));
 
         clusterName = settings.get("cluster.name");
     }
 
-    protected void setNamespace() {
-        namespace = settings.get("metrics.cloudwatch.namespace");
+    protected String getNamespace() {
+        String namespace = settings.get("metrics.cloudwatch.namespace");
+
         if(namespace == null) {
             namespace = "Elasticsearch"; 
         }
+
+        return namespace;
     }
 
-    protected void setCredentials() {
+    protected AWSCredentialsProvider getCredentialsProvider() {
         String accessKey = settings.get("metrics.cloudwatch.aws.access_key");
         String secretKey = settings.get("metrics.cloudwatch.aws.secret_key");
 
@@ -100,7 +98,7 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
                     );
         }
 
-        awsCredentials = awsCredentialsProvider.getCredentials();
+        return awsCredentialsProvider;
     }
 
     @Override
@@ -167,21 +165,10 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
         }
 
         private void putCloudwatchMetricData(PutMetricDataRequest request) {
-            putCloudwatchMetricData(request, false);
-        }
-
-        private void putCloudwatchMetricData(PutMetricDataRequest request, Boolean retried) {
-            // We can't easily tell if our auth token has expired here, so just re-auth once
             try {
                 cloudwatch.putMetricData(request);
             } catch (AmazonClientException e) {
-                if(retried) {
-                    logger.error("Error trying to put metric data!", e); 
-                } else {
-                    logger.info("Trying to re-auth and resend metric data.", e);
-                    setCredentials();
-                    putCloudwatchMetricData(request, true);
-                }
+                logger.error("Error trying to put metric data!", e); 
             }
         }
 
@@ -359,7 +346,9 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
 
     }
 
-    private String cloudwatchEndpoint(String region) {
+    private String getCloudwatchEndpoint() {
+        String region = settings.get("metrics.cloudwatch.aws.region");
+
         if ("us-east-1".equals(region) || "us-west-2".equals(region)
                 || "us-west-1".equals(region) || "eu-west-1".equals(region)
                 || "ap-southeast-1".equals(region) || "ap-southeast-2".equals(region)
@@ -371,10 +360,13 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
         }
     }
 
-    private AmazonCloudWatch cloudwatchClient(String region) {
-        String cloudwatchEndpoint = cloudwatchEndpoint(region);
-        final AmazonCloudWatch cloudwatch = new AmazonCloudWatchClient(awsCredentials);
+    private AmazonCloudWatch getCloudwatchClient() {
+        AWSCredentialsProvider awsCredentialsProvider = getCredentialsProvider(); 
+        String cloudwatchEndpoint = getCloudwatchEndpoint();
+
+        final AmazonCloudWatch cloudwatch = new AmazonCloudWatchClient(awsCredentialsProvider);
         cloudwatch.setEndpoint(cloudwatchEndpoint);
+
         return cloudwatch;
     }
 
