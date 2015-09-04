@@ -13,7 +13,7 @@ To generate the plugin for installation you need to use maven:
 
 Install it from the Elasticsearch installation directory, by running (change the location of your file):
 
-    $ bin/plugin -url kenoir/elasticsearch-cloudwatch -install CloudwatchPlugin
+    $ bin/plugin -url https://github.com/guardian/elasticsearch-cloudwatch/releases/download/1.2/elasticsearch-CloudwatchPlugin-1.2.zip -install CloudwatchPlugin
 
 To uninstall it you can run:
 
